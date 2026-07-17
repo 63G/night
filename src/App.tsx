@@ -6,14 +6,21 @@ import {
   Coffee,
   CornerDownLeft,
   Download,
+  ExternalLink,
+  Gamepad2,
   Heart,
+  Home,
+  ListOrdered,
+  MessageCircle,
   Music,
   Plane,
   RefreshCcw,
   RotateCcw,
+  Sprout,
   Sparkles,
   Star,
   Target,
+  Trophy,
   Waves,
   X,
   type LucideIcon,
@@ -23,11 +30,14 @@ import {
   type CSSProperties,
   Fragment,
   type KeyboardEvent,
+  type PointerEvent,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+
+type DateNightId = "date-one" | "date-two";
 
 type ActivityId =
   | "flower"
@@ -36,7 +46,14 @@ type ActivityId =
   | "wordle"
   | "painting"
   | "battle-ships"
-  | "letters";
+  | "letters"
+  | "secret-garden"
+  | "xo-game"
+  | "topic-cards"
+  | "ranking"
+  | "signal-game"
+  | "code-game"
+  | "star-sequence";
 
 type Activity = {
   id: ActivityId;
@@ -45,7 +62,15 @@ type Activity = {
   guidance: string;
 };
 
-const activities: Activity[] = [
+type DateNight = {
+  id: DateNightId;
+  title: string;
+  subtitle: string;
+  description: string;
+  activities: Activity[];
+};
+
+const dateOneActivities: Activity[] = [
   {
     id: "flower",
     title: "Grow the Flower",
@@ -97,20 +122,102 @@ const activities: Activity[] = [
   },
 ];
 
+const dateTwoActivities: Activity[] = [
+  {
+    id: "secret-garden",
+    title: "Your Secret Garden",
+    eyebrow: "Enter quietly",
+    guidance:
+      "Open the private garden link, spend a moment there, then come back to continue the night.",
+  },
+  {
+    id: "xo-game",
+    title: "XO Game",
+    eyebrow: "Play together",
+    guidance:
+      "You are X. The page is O. Win, lose, or draw, it stays simple.",
+  },
+  {
+    id: "topic-cards",
+    title: "Topic Cards",
+    eyebrow: "Talk freely",
+    guidance:
+      "Simple cards only. Pull one, discuss it your way, and move when it feels complete.",
+  },
+  {
+    id: "ranking",
+    title: "Do We Know Each Other?",
+    eyebrow: "Rank and compare",
+    guidance:
+      "Pick a list, rank it for yourself, then guess how the other person would order it.",
+  },
+  {
+    id: "signal-game",
+    title: "Signal Match",
+    eyebrow: "Same wavelength",
+    guidance:
+      "A tiny guessing game. Choose the answer you think the other person would choose.",
+  },
+  {
+    id: "code-game",
+    title: "Constellation Code",
+    eyebrow: "Crack the sky",
+    guidance:
+      "Guess the hidden four-symbol constellation. Exact stars are perfect; glow means right symbol, wrong place.",
+  },
+  {
+    id: "star-sequence",
+    title: "Star Sequence",
+    eyebrow: "Remember the pattern",
+    guidance:
+      "Watch the glowing pattern, then repeat it together. Each round adds one more signal.",
+  },
+];
+
+const dateNights: DateNight[] = [
+  {
+    id: "date-one",
+    title: "Date 1",
+    subtitle: "Threadlight",
+    description:
+      "Flower, would-you-rather, memory match, secret word, painting, battle-ships, and letters.",
+    activities: dateOneActivities,
+  },
+  {
+    id: "date-two",
+    title: "Date 2",
+    subtitle: "Garden Signals",
+    description:
+      "A secret garden doorway, XO, topic cards, ranking games, wavelength checks, code puzzles, and a memory sequence.",
+    activities: dateTwoActivities,
+  },
+];
+
 function App() {
-  const [step, setStep] = useState(() => {
-    const saved = window.localStorage.getItem("threadlight-step");
-    return saved ? Math.min(Number(saved), activities.length - 1) : 0;
+  const [selectedNight, setSelectedNight] = useState<DateNightId | null>(null);
+  const [stepByNight, setStepByNight] = useState<Record<DateNightId, number>>(() => {
+    const saved = window.localStorage.getItem("threadlight-steps");
+    return saved
+      ? { "date-one": 0, "date-two": 0, ...(JSON.parse(saved) as Partial<Record<DateNightId, number>>) }
+      : { "date-one": 0, "date-two": 0 };
   });
   const [completed, setCompleted] = useState<Set<ActivityId>>(() => {
     const saved = window.localStorage.getItem("threadlight-completed");
     return new Set(saved ? (JSON.parse(saved) as ActivityId[]) : []);
   });
 
+  const activeNight = dateNights.find((night) => night.id === selectedNight) ?? null;
+  const step = activeNight ? Math.min(stepByNight[activeNight.id], activeNight.activities.length - 1) : 0;
+  const activity = activeNight?.activities[step];
+
   useEffect(() => {
-    window.localStorage.setItem("threadlight-step", String(step));
+    window.localStorage.removeItem("threadlight-selected-night");
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("threadlight-steps", JSON.stringify(stepByNight));
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [step]);
+  }, [stepByNight]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -119,20 +226,45 @@ function App() {
     );
   }, [completed]);
 
-  const activity = activities[step];
-  const progress = Math.round(((step + 1) / activities.length) * 100);
+  const openNight = (nightId: DateNightId) => {
+    const night = dateNights.find((item) => item.id === nightId);
+    if (!night) return;
+    setStepByNight((current) => ({ ...current, [nightId]: 0 }));
+    setCompleted((current) => {
+      const next = new Set(current);
+      night.activities.forEach((item) => next.delete(item.id));
+      return next;
+    });
+    setSelectedNight(nightId);
+  };
+
+  if (!activeNight || !activity) {
+    return <DateHome onSelect={openNight} />;
+  }
+
+  const progress = Math.round(((step + 1) / activeNight.activities.length) * 100);
+
+  const setStep = (nextStep: number) => {
+    setStepByNight((current) => ({
+      ...current,
+      [activeNight.id]: Math.min(Math.max(nextStep, 0), activeNight.activities.length - 1),
+    }));
+  };
 
   const completeAndNext = () => {
     setCompleted((current) => new Set(current).add(activity.id));
-    setStep((current) => Math.min(current + 1, activities.length - 1));
+    setStep(step + 1);
   };
 
-  const goBack = () => setStep((current) => Math.max(current - 1, 0));
+  const goBack = () => setStep(step - 1);
 
   const resetNight = () => {
-    setCompleted(new Set());
+    setCompleted((current) => {
+      const next = new Set(current);
+      activeNight.activities.forEach((item) => next.delete(item.id));
+      return next;
+    });
     setStep(0);
-    window.localStorage.removeItem("threadlight-step");
     window.localStorage.removeItem("threadlight-completed");
   };
 
@@ -145,7 +277,7 @@ function App() {
           </div>
           <div>
             <p>Threadlight</p>
-            <span>long-distance date night</span>
+            <span>{activeNight.title} · {activeNight.subtitle}</span>
           </div>
         </div>
 
@@ -160,7 +292,7 @@ function App() {
         </div>
 
         <nav className="activity-nav">
-          {activities.map((item, index) => (
+          {activeNight.activities.map((item, index) => (
             <button
               key={item.id}
               className={`nav-item ${index === step ? "active" : ""}`}
@@ -175,6 +307,11 @@ function App() {
             </button>
           ))}
         </nav>
+
+        <button className="ghost-button home-button" type="button" onClick={() => setSelectedNight(null)}>
+          <Home size={16} aria-hidden="true" />
+          All dates
+        </button>
 
         <button className="ghost-button reset-button" type="button" onClick={resetNight}>
           <RotateCcw size={16} aria-hidden="true" />
@@ -198,7 +335,7 @@ function App() {
             <ArrowLeft size={16} aria-hidden="true" />
             Back
           </button>
-          {step < activities.length - 1 ? (
+          {step < activeNight.activities.length - 1 ? (
             <button className="primary-button" type="button" onClick={completeAndNext}>
               Continue
               <ArrowRight size={16} aria-hidden="true" />
@@ -210,6 +347,52 @@ function App() {
             </button>
           )}
         </footer>
+      </section>
+    </main>
+  );
+}
+
+function DateHome({ onSelect }: { onSelect: (night: DateNightId) => void }) {
+  return (
+    <main className="home-screen">
+      <section className="home-hero" aria-labelledby="home-title">
+        <div className="brand-lockup">
+          <div className="brand-mark">
+            <Sparkles size={18} aria-hidden="true" />
+          </div>
+          <div>
+            <p>Threadlight</p>
+            <span>long-distance date nights</span>
+          </div>
+        </div>
+        <div>
+          <p className="eyebrow">Choose tonight</p>
+          <h1 id="home-title">Pick a date.</h1>
+          <p>
+            Each night is its own guided flow, so you can keep adding new ones
+            without losing the feeling of a complete little ritual.
+          </p>
+        </div>
+      </section>
+
+      <section className="date-card-grid" aria-label="Date nights">
+        {dateNights.map((night, index) => (
+          <button
+            key={night.id}
+            className="date-card"
+            type="button"
+            onClick={() => onSelect(night.id)}
+          >
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <strong>{night.title}</strong>
+            <em>{night.subtitle}</em>
+            <p>{night.description}</p>
+            <span className="date-card-action">
+              Start
+              <ArrowRight size={16} aria-hidden="true" />
+            </span>
+          </button>
+        ))}
       </section>
     </main>
   );
@@ -231,6 +414,20 @@ function renderActivity(id: ActivityId, onNext: () => void) {
       return <Battleships onNext={onNext} />;
     case "letters":
       return <Letters />;
+    case "secret-garden":
+      return <SecretGarden onNext={onNext} />;
+    case "xo-game":
+      return <XoGame onNext={onNext} />;
+    case "topic-cards":
+      return <TopicCards onNext={onNext} />;
+    case "ranking":
+      return <RankingGame onNext={onNext} />;
+    case "signal-game":
+      return <SignalGame />;
+    case "code-game":
+      return <ConstellationCode />;
+    case "star-sequence":
+      return <StarSequence />;
   }
 }
 
@@ -819,6 +1016,746 @@ function Letters() {
           Download PNG
         </button>
         <span className="status-text">{status || "You can also use your normal screenshot shortcut."}</span>
+      </div>
+    </div>
+  );
+}
+
+function SecretGarden({ onNext }: { onNext: () => void }) {
+  const gardenUrl = "https://secret-garden-jet.vercel.app";
+
+  return (
+    <div className="garden-layout">
+      <div className="garden-frame">
+        <Sprout size={54} aria-hidden="true" />
+        <span className="mini-label">Private link</span>
+        <h2>Your secret garden waits here.</h2>
+        <p>
+          Step into the garden first. When you are both ready, return here and
+          continue the rest of the night.
+        </p>
+        <div className="activity-actions">
+          <a className="primary-button" href={gardenUrl} target="_blank" rel="noreferrer">
+            Open garden
+            <ExternalLink size={16} aria-hidden="true" />
+          </a>
+          <button className="ghost-button" type="button" onClick={onNext}>
+            Continue
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type XoMark = "X" | "O" | null;
+type XoResult = "X" | "O" | "draw" | null;
+
+const xoLines = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6],
+];
+
+function getXoResult(board: XoMark[]): XoResult {
+  for (const [a, b, c] of xoLines) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
+  }
+  return board.every(Boolean) ? "draw" : null;
+}
+
+function findXoMove(board: XoMark[], mark: "X" | "O") {
+  for (const [a, b, c] of xoLines) {
+    const cells = [board[a], board[b], board[c]];
+    const emptyIndex = [a, b, c].find((cell) => board[cell] === null);
+    if (emptyIndex !== undefined && cells.filter((cell) => cell === mark).length === 2) {
+      return emptyIndex;
+    }
+  }
+  return null;
+}
+
+function chooseO(board: XoMark[]) {
+  const win = findXoMove(board, "O");
+  if (win !== null) return win;
+  const block = findXoMove(board, "X");
+  if (block !== null) return block;
+  if (!board[4]) return 4;
+  const corners = [0, 2, 6, 8].filter((cell) => !board[cell]);
+  if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+  const open = board.map((cell, index) => (cell ? null : index)).filter((cell): cell is number => cell !== null);
+  return open[Math.floor(Math.random() * open.length)];
+}
+
+function XoGame({ onNext }: { onNext: () => void }) {
+  const [board, setBoard] = useState<XoMark[]>(Array.from({ length: 9 }, () => null));
+  const result = getXoResult(board);
+
+  const play = (index: number) => {
+    if (board[index] || result) return;
+    const next = [...board];
+    next[index] = "X";
+    if (!getXoResult(next)) {
+      const move = chooseO(next);
+      if (move !== undefined) next[move] = "O";
+    }
+    setBoard(next);
+  };
+
+  const reset = () => {
+    setBoard(Array.from({ length: 9 }, () => null));
+  };
+
+  return (
+    <div className="xo-layout">
+      <div className="xo-board" aria-label="XO board">
+        {board.map((mark, index) => (
+          <button
+            key={index}
+            className={`xo-cell ${mark ? "filled" : ""}`}
+            type="button"
+            onClick={() => play(index)}
+            aria-label={`Cell ${index + 1}${mark ? ` ${mark}` : ""}`}
+          >
+            {mark}
+          </button>
+        ))}
+      </div>
+      <div className="xo-panel">
+        <Gamepad2 size={28} aria-hidden="true" />
+        <h2>{result ? (result === "draw" ? "Draw." : `${result} wins.`) : "Beat the page."}</h2>
+        <p>
+          {result === "O"
+            ? "O got this one. Reset and steal the next round."
+            : result === "X"
+              ? "You won. Take the victory with unreasonable confidence."
+              : result === "draw"
+                ? "Perfectly balanced. Annoying, but elegant."
+                : "Tap a square. O will answer immediately."}
+        </p>
+        <div className="activity-actions stacked">
+          <button className="ghost-button" type="button" onClick={reset}>
+            <RefreshCcw size={16} aria-hidden="true" />
+            Play again
+          </button>
+          <button className="primary-button" type="button" onClick={onNext}>
+            Topic cards
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const topicCards = [
+  "A tiny habit that makes a person feel loved",
+  "The funniest wrong first impression",
+  "A place that feels like a reset button",
+  "Something you want to be braver about",
+  "A food opinion you will defend too strongly",
+  "What makes a normal day feel romantic",
+  "A memory you wish had lasted ten more minutes",
+  "A ridiculous thing you secretly find attractive",
+  "The version of you that only comes out when you feel safe",
+  "A dream trip with one rule: no practical planning",
+  "What you need when you are quiet",
+  "A small promise that actually matters",
+];
+
+function TopicCards({ onNext }: { onNext: () => void }) {
+  const [index, setIndex] = useState(0);
+  const topic = topicCards[index];
+
+  return (
+    <div className="topic-layout">
+      <div className="topic-card">
+        <MessageCircle size={34} aria-hidden="true" />
+        <span className="mini-label">Card {index + 1} of {topicCards.length}</span>
+        <h2>{topic}</h2>
+      </div>
+      <div className="activity-actions">
+        <button className="ghost-button" type="button" onClick={() => setIndex((index + topicCards.length - 1) % topicCards.length)}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          Previous
+        </button>
+        <button className="ghost-button" type="button" onClick={() => setIndex((index + 1) % topicCards.length)}>
+          Next topic
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+        <button className="primary-button" type="button" onClick={onNext}>
+          Rank things
+          <ListOrdered size={16} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const rankingSets = [
+  {
+    title: "Fast-food restaurants",
+    items: ["McDonald's", "KFC", "Burger King", "Subway", "Pizza Hut", "Five Guys"],
+  },
+  {
+    title: "Perfect date snacks",
+    items: ["Fries", "Ice cream", "Popcorn", "Chocolate", "Fruit", "Cookies"],
+  },
+  {
+    title: "Love languages",
+    items: ["Words", "Time", "Touch", "Acts", "Gifts"],
+  },
+  {
+    title: "Movie night moods",
+    items: ["Comedy", "Romance", "Thriller", "Animation", "Drama", "Mystery"],
+  },
+  {
+    title: "Texting styles",
+    items: ["Voice notes", "Long paragraphs", "Memes", "Photos", "Good morning texts", "Random updates"],
+  },
+  {
+    title: "Dream dates",
+    items: ["Beach walk", "Museum", "Late drive", "Cooking together", "Fancy dinner", "Arcade"],
+  },
+  {
+    title: "Comfort shows",
+    items: ["Sitcom", "Reality show", "Anime", "Crime documentary", "K-drama", "Cooking show"],
+  },
+  {
+    title: "Desserts",
+    items: ["Cheesecake", "Brownies", "Tiramisu", "Crepes", "Donuts", "Ice cream"],
+  },
+  {
+    title: "Trip priorities",
+    items: ["Food", "Views", "Shopping", "Sleep", "Photos", "Adventure"],
+  },
+  {
+    title: "Pet names",
+    items: ["Baby", "Love", "Princess", "Habibti", "Angel", "My girl"],
+  },
+  {
+    title: "Cozy rituals",
+    items: ["Movie call", "Shared playlist", "Night walk", "Reading together", "Cooking call", "Sleep call"],
+  },
+  {
+    title: "Compliments",
+    items: ["Smile", "Voice", "Style", "Mind", "Kindness", "Eyes"],
+  },
+];
+
+function RankingGame({ onNext }: { onNext: () => void }) {
+  const [setIndex, setSetIndex] = useState(0);
+  const [items, setItems] = useState(rankingSets[0].items);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const rankListRef = useRef<HTMLDivElement>(null);
+  const active = rankingSets[setIndex];
+
+  const chooseSet = (index: number) => {
+    setSetIndex(index);
+    setItems(rankingSets[index].items);
+    setDragging(null);
+  };
+
+  const reorder = (from: number, target: number) => {
+    if (target < 0 || target >= items.length) return;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(target, 0, item);
+    setItems(next);
+    setDragging(target);
+  };
+
+  const move = (index: number, direction: -1 | 1) => {
+    reorder(index, index + direction);
+  };
+
+  const startDrag = (index: number, event: PointerEvent<HTMLButtonElement>) => {
+    setDragging(index);
+    rankListRef.current?.setPointerCapture(event.pointerId);
+  };
+
+  const dragOver = (event: PointerEvent<HTMLDivElement>) => {
+    if (dragging === null || !rankListRef.current) return;
+    const rows = [...rankListRef.current.querySelectorAll<HTMLElement>("[data-rank-index]")];
+    const target = rows.findIndex((row) => {
+      const rect = row.getBoundingClientRect();
+      return event.clientY >= rect.top && event.clientY <= rect.bottom;
+    });
+    if (target !== -1 && target !== dragging) {
+      reorder(dragging, target);
+    }
+  };
+
+  const endDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (rankListRef.current?.hasPointerCapture(event.pointerId)) {
+      rankListRef.current.releasePointerCapture(event.pointerId);
+    }
+    setDragging(null);
+  };
+
+  return (
+    <div className="ranking-layout">
+      <div className="ranking-tabs" aria-label="Ranking categories">
+        {rankingSets.map((set, index) => (
+          <button
+            key={set.title}
+            className={index === setIndex ? "active" : ""}
+            type="button"
+            onClick={() => chooseSet(index)}
+          >
+            {set.title}
+          </button>
+        ))}
+      </div>
+      <div className="ranking-board">
+        <span className="mini-label">Rank this</span>
+        <h2>{active.title}</h2>
+        <div
+          className="rank-list"
+          ref={rankListRef}
+          onPointerMove={dragOver}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
+          {items.map((item, index) => (
+            <div
+              key={item}
+              className={`rank-row ${dragging === index ? "dragging" : ""}`}
+              data-rank-index={index}
+            >
+              <strong>{index + 1}</strong>
+              <span>{item}</span>
+              <button
+                className="drag-handle"
+                type="button"
+                onPointerDown={(event) => startDrag(index, event)}
+                aria-label={`Drag ${item}`}
+              >
+                <ListOrdered size={16} aria-hidden="true" />
+              </button>
+              <div className="rank-actions">
+                <button type="button" onClick={() => move(index, -1)} aria-label={`Move ${item} up`}>
+                  <ArrowLeft size={14} aria-hidden="true" />
+                </button>
+                <button type="button" onClick={() => move(index, 1)} aria-label={`Move ${item} down`}>
+                  <ArrowRight size={14} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p>First rank yours. Then guess hers. Then compare out loud.</p>
+        <button className="primary-button" type="button" onClick={onNext}>
+          Final game
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const signalRounds = [
+  {
+    prompt: "A midnight craving appears. What do you pick?",
+    options: ["Fries", "Ice cream", "Noodles", "Cake"],
+  },
+  {
+    prompt: "The next date needs one mood.",
+    options: ["Cozy", "Chaotic", "Fancy", "Quiet"],
+  },
+  {
+    prompt: "A surprise message should be...",
+    options: ["Funny", "Soft", "Bold", "Very specific"],
+  },
+  {
+    prompt: "If you had one teleport, where does it land?",
+    options: ["Her door", "A beach", "A hotel lobby", "A kitchen"],
+  },
+];
+
+function SignalGame() {
+  const [round, setRound] = useState(0);
+  const [you, setYou] = useState<string | null>(null);
+  const [her, setHer] = useState<string | null>(null);
+  const active = signalRounds[round];
+  const revealed = Boolean(you && her);
+  const matched = revealed && you === her;
+
+  const nextRound = () => {
+    setRound((value) => (value + 1) % signalRounds.length);
+    setYou(null);
+    setHer(null);
+  };
+
+  return (
+    <div className="signal-layout">
+      <div className="signal-card">
+        <Trophy size={34} aria-hidden="true" />
+        <span className="mini-label">Round {round + 1} of {signalRounds.length}</span>
+        <h2>{active.prompt}</h2>
+        <div className="signal-columns">
+          <SignalPicker label="You" value={you} options={active.options} onPick={setYou} revealed={revealed} />
+          <SignalPicker label="Her" value={her} options={active.options} onPick={setHer} revealed={revealed} />
+        </div>
+        <p>
+          {revealed
+            ? matched
+              ? "Same signal. Suspiciously cute."
+              : "Different signals. Defend your choice."
+            : "Choose privately, then reveal when both sides are locked."}
+        </p>
+        <button className="primary-button" type="button" onClick={nextRound} disabled={!revealed}>
+          Next signal
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SignalPicker({
+  label,
+  value,
+  options,
+  onPick,
+  revealed,
+}: {
+  label: string;
+  value: string | null;
+  options: string[];
+  onPick: (value: string) => void;
+  revealed: boolean;
+}) {
+  return (
+    <div className="signal-picker">
+      <strong>{label}</strong>
+      {options.map((option) => (
+        <button
+          key={option}
+          className={value === option ? "selected" : ""}
+          type="button"
+          onClick={() => onPick(option)}
+        >
+          {revealed || value !== option ? option : "Locked"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const codeSymbols = ["Sun", "Moon", "Star", "Comet", "Nova", "Orbit"];
+const codeLength = 4;
+
+function makeCodeSecret() {
+  return Array.from({ length: codeLength }, () => codeSymbols[Math.floor(Math.random() * codeSymbols.length)]);
+}
+
+function scoreCodeGuess(guess: string[], secret: string[]) {
+  let exact = 0;
+  const remainingSecret = new Map<string, number>();
+  const remainingGuess: string[] = [];
+
+  guess.forEach((symbol, index) => {
+    if (symbol === secret[index]) {
+      exact += 1;
+    } else {
+      remainingGuess.push(symbol);
+      remainingSecret.set(secret[index], (remainingSecret.get(secret[index]) ?? 0) + 1);
+    }
+  });
+
+  let glow = 0;
+  remainingGuess.forEach((symbol) => {
+    const count = remainingSecret.get(symbol) ?? 0;
+    if (count > 0) {
+      glow += 1;
+      remainingSecret.set(symbol, count - 1);
+    }
+  });
+
+  return { exact, glow };
+}
+
+function getCodeTileStates(guess: string[], secret: string[]) {
+  const states: Array<"exact" | "glow" | "miss"> = Array.from({ length: guess.length }, () => "miss");
+  const remainingSecret = new Map<string, number>();
+
+  guess.forEach((symbol, index) => {
+    if (symbol === secret[index]) {
+      states[index] = "exact";
+    } else {
+      remainingSecret.set(secret[index], (remainingSecret.get(secret[index]) ?? 0) + 1);
+    }
+  });
+
+  guess.forEach((symbol, index) => {
+    if (states[index] === "exact") return;
+    const count = remainingSecret.get(symbol) ?? 0;
+    if (count > 0) {
+      states[index] = "glow";
+      remainingSecret.set(symbol, count - 1);
+    }
+  });
+
+  return states;
+}
+
+function ConstellationCode() {
+  const [secret, setSecret] = useState(makeCodeSecret);
+  const [current, setCurrent] = useState<string[]>([]);
+  const [guesses, setGuesses] = useState<string[][]>([]);
+  const solved = guesses.some((guess) => scoreCodeGuess(guess, secret).exact === codeLength);
+  const outOfTries = guesses.length >= 7 && !solved;
+
+  const addSymbol = (symbol: string) => {
+    if (solved || outOfTries || current.length >= codeLength) return;
+    setCurrent((value) => [...value, symbol]);
+  };
+
+  const submit = () => {
+    if (current.length !== codeLength || solved || outOfTries) return;
+    setGuesses((value) => [...value, current]);
+    setCurrent([]);
+  };
+
+  const reset = () => {
+    setSecret(makeCodeSecret());
+    setCurrent([]);
+    setGuesses([]);
+  };
+
+  return (
+    <div className="code-layout">
+      <div className="code-card">
+        <Star size={34} aria-hidden="true" />
+        <span className="mini-label">Seven tries</span>
+        <h2>Guess the hidden constellation.</h2>
+        <div className="code-current" aria-label="Current code guess">
+          {Array.from({ length: codeLength }, (_, index) => (
+            <span key={index}>{current[index] ?? ""}</span>
+          ))}
+        </div>
+        <div className="code-symbols" aria-label="Constellation symbols">
+          {codeSymbols.map((symbol) => (
+            <button key={symbol} type="button" onClick={() => addSymbol(symbol)}>
+              {symbol}
+            </button>
+          ))}
+        </div>
+        <div className="activity-actions">
+          <button className="ghost-button" type="button" onClick={() => setCurrent((value) => value.slice(0, -1))}>
+            Delete
+            <X size={16} aria-hidden="true" />
+          </button>
+          <button className="primary-button" type="button" onClick={submit} disabled={current.length !== codeLength || solved || outOfTries}>
+            Guess
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="code-history">
+          {guesses.map((guess, index) => {
+            const score = scoreCodeGuess(guess, secret);
+            const states = getCodeTileStates(guess, secret);
+            return (
+              <div key={`${guess.join("-")}-${index}`} className="code-row">
+                <span>{index + 1}</span>
+                <div className="code-tiles" aria-label={`Guess ${index + 1}`}>
+                  {guess.map((symbol, symbolIndex) => (
+                    <strong key={`${symbol}-${symbolIndex}`} className={states[symbolIndex]}>
+                      {symbol}
+                    </strong>
+                  ))}
+                </div>
+                <em>{score.exact} exact / {score.glow} glow</em>
+              </div>
+            );
+          })}
+        </div>
+        {solved || outOfTries ? (
+          <div className="code-result">
+            {solved ? "Solved. Same sky, correct stars." : `The code was ${secret.join(" · ")}.`}
+          </div>
+        ) : null}
+        <button className="ghost-button" type="button" onClick={reset}>
+          <RefreshCcw size={16} aria-hidden="true" />
+          New code
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const sequenceTiles: Array<{ label: string; Icon: LucideIcon }> = [
+  { label: "Heart", Icon: Heart },
+  { label: "Star", Icon: Star },
+  { label: "Spark", Icon: Sparkles },
+  { label: "Song", Icon: Music },
+  { label: "Coffee", Icon: Coffee },
+  { label: "Wave", Icon: Waves },
+];
+
+const maxSequenceRound = 6;
+
+function StarSequence() {
+  const [sequence, setSequence] = useState<number[]>([]);
+  const [input, setInput] = useState<number[]>([]);
+  const [activeTile, setActiveTile] = useState<number | null>(null);
+  const [isShowing, setIsShowing] = useState(false);
+  const [roundComplete, setRoundComplete] = useState(false);
+  const [message, setMessage] = useState("Start the pattern, watch together, then repeat it.");
+  const timersRef = useRef<number[]>([]);
+  const complete = roundComplete && sequence.length >= maxSequenceRound;
+
+  const clearTimers = () => {
+    timersRef.current.forEach((timer) => window.clearTimeout(timer));
+    timersRef.current = [];
+  };
+
+  useEffect(() => clearTimers, []);
+
+  const randomTile = () => Math.floor(Math.random() * sequenceTiles.length);
+
+  const playPattern = (pattern: number[]) => {
+    if (!pattern.length) return;
+    clearTimers();
+    setInput([]);
+    setActiveTile(null);
+    setIsShowing(true);
+    setRoundComplete(false);
+    setMessage("Watch the signals.");
+
+    pattern.forEach((tile, index) => {
+      const startsAt = index * 720;
+      timersRef.current.push(window.setTimeout(() => setActiveTile(tile), startsAt));
+      timersRef.current.push(window.setTimeout(() => setActiveTile(null), startsAt + 430));
+    });
+
+    timersRef.current.push(window.setTimeout(() => {
+      setIsShowing(false);
+      setMessage("Your turn. Repeat the pattern.");
+    }, pattern.length * 720 + 150));
+  };
+
+  const start = () => {
+    const next = [randomTile()];
+    setSequence(next);
+    playPattern(next);
+  };
+
+  const nextRound = () => {
+    const next = [...sequence, randomTile()];
+    setSequence(next);
+    playPattern(next);
+  };
+
+  const reset = () => {
+    clearTimers();
+    setSequence([]);
+    setInput([]);
+    setActiveTile(null);
+    setIsShowing(false);
+    setRoundComplete(false);
+    setMessage("Start the pattern, watch together, then repeat it.");
+  };
+
+  const pickTile = (tile: number) => {
+    if (isShowing || !sequence.length || roundComplete) return;
+    timersRef.current.push(window.setTimeout(() => setActiveTile(null), 180));
+    setActiveTile(tile);
+
+    const expected = sequence[input.length];
+    if (tile !== expected) {
+      setInput([]);
+      setRoundComplete(false);
+      setMessage("Wrong signal. Replay the pattern and try again.");
+      return;
+    }
+
+    const nextInput = [...input, tile];
+    setInput(nextInput);
+
+    if (nextInput.length === sequence.length) {
+      setRoundComplete(true);
+      setMessage(
+        sequence.length >= maxSequenceRound
+          ? "Full sequence held. Take the tiny victory."
+          : "Matched. Add one more signal when you are ready.",
+      );
+      return;
+    }
+
+    const left = sequence.length - nextInput.length;
+    setMessage(`${left} signal${left === 1 ? "" : "s"} left.`);
+  };
+
+  return (
+    <div className="sequence-layout">
+      <div className="sequence-card">
+        <Star size={34} aria-hidden="true" />
+        <span className="mini-label">Round {sequence.length || 1} of {maxSequenceRound}</span>
+        <h2>Hold the pattern together.</h2>
+        <p>{message}</p>
+
+        <div className="sequence-progress" aria-label="Sequence progress">
+          {Array.from({ length: maxSequenceRound }, (_, index) => (
+            <span
+              key={index}
+              className={[
+                index < input.length ? "filled" : "",
+                index < sequence.length && index >= input.length ? "waiting" : "",
+              ].join(" ").trim()}
+            />
+          ))}
+        </div>
+
+        <div className="sequence-grid" aria-label="Star sequence buttons">
+          {sequenceTiles.map(({ label, Icon }, index) => (
+            <button
+              key={label}
+              className={activeTile === index ? "sequence-tile active" : "sequence-tile"}
+              type="button"
+              onClick={() => pickTile(index)}
+              disabled={isShowing || !sequence.length || roundComplete}
+            >
+              <Icon size={24} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="activity-actions">
+          {!sequence.length ? (
+            <button className="primary-button" type="button" onClick={start}>
+              Start pattern
+              <Sparkles size={16} aria-hidden="true" />
+            </button>
+          ) : complete ? (
+            <button className="primary-button" type="button" onClick={start}>
+              Play again
+              <RefreshCcw size={16} aria-hidden="true" />
+            </button>
+          ) : roundComplete ? (
+            <button className="primary-button" type="button" onClick={nextRound}>
+              Add signal
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          ) : (
+            <button className="primary-button" type="button" onClick={() => playPattern(sequence)} disabled={isShowing}>
+              Replay pattern
+              <RotateCcw size={16} aria-hidden="true" />
+            </button>
+          )}
+          <button className="ghost-button" type="button" onClick={reset}>
+            Reset
+            <RefreshCcw size={16} aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </div>
   );
