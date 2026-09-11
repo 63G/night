@@ -1365,59 +1365,228 @@ textarea:focus {
 
 .knock-card {
   position: relative;
+  grid-template-columns: minmax(18rem, 0.78fr) minmax(19rem, 0.82fr);
+  align-items: center;
+  gap: clamp(1.2rem, 4vw, 3rem);
   overflow: hidden;
 }
 
-.knock-card::after {
-  position: absolute;
-  inset: auto -10% -18% 38%;
-  height: 16rem;
-  content: "";
-  background: radial-gradient(circle, rgba(255, 209, 102, 0.18), transparent 70%);
-  opacity: 0;
-  transition: opacity 220ms ease;
+.knock-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1rem;
+  width: 100%;
 }
 
-.moon-open .knock-card::after {
-  opacity: 1;
+.knock-progress {
+  display: grid;
+  grid-template-columns: repeat(3, 3.2rem);
+  gap: 0.55rem;
+}
+
+.knock-progress span {
+  display: grid;
+  height: 3.2rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(14, 19, 36, 0.78);
+  color: var(--night-muted);
+  font-weight: 900;
+}
+
+.knock-progress span.lit {
+  border-color: rgba(255, 209, 102, 0.7);
+  background: rgba(255, 209, 102, 0.16);
+  color: var(--gold);
+  box-shadow: 0 0 1.1rem rgba(255, 209, 102, 0.18);
+}
+
+.moonroom-scene {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 100%;
+  min-height: 30rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 72% 22%, rgba(255, 209, 102, 0.18), transparent 9rem),
+    radial-gradient(circle at 24% 82%, rgba(239, 71, 111, 0.16), transparent 11rem),
+    linear-gradient(180deg, rgba(19, 29, 55, 0.95), rgba(10, 14, 28, 0.94));
+}
+
+.moonroom-scene::before,
+.moonroom-scene::after {
+  position: absolute;
+  content: "";
+}
+
+.moonroom-scene::before {
+  top: 2.4rem;
+  right: 2.2rem;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 50% 50%, #fff7d6 0 2.2rem, #ffd166 2.25rem 3.2rem, transparent 3.25rem),
+    rgba(255, 255, 255, 0.05);
+  opacity: 0.28;
+  box-shadow: 0 0 3rem rgba(255, 209, 102, 0.18);
+}
+
+.moonroom-scene::after {
+  inset: auto 0 0;
+  height: 32%;
+  background:
+    linear-gradient(90deg, transparent 0 14%, rgba(255, 255, 255, 0.06) 14% 15%, transparent 15% 85%, rgba(255, 255, 255, 0.06) 85% 86%, transparent 86%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(239, 71, 111, 0.12));
+  clip-path: polygon(10% 100%, 90% 100%, 66% 0, 34% 0);
 }
 
 .knock-door {
   position: relative;
   display: grid;
-  gap: 0.45rem;
-  width: min(100%, 20rem);
-  min-height: 15rem;
+  z-index: 2;
+  width: min(56%, 17rem);
+  min-height: 23rem;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   background:
-    linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.12) 50%, transparent 51%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(239, 71, 111, 0.12)),
-    #10172b;
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 48%, rgba(255, 255, 255, 0.11) 49% 51%, transparent 52%),
+    radial-gradient(circle at 78% 56%, rgba(255, 209, 102, 0.22), transparent 2.6rem),
+    linear-gradient(180deg, #25233b, #1b1228);
   color: var(--night-text);
   text-align: center;
+  box-shadow: 0 1.8rem 3rem rgba(0, 0, 0, 0.24);
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    opacity 220ms ease;
 }
 
-.knock-door span {
+.knock-door:hover {
+  transform: translateY(-2px);
+}
+
+.door-slit {
   position: absolute;
-  right: 1.4rem;
+  inset: 0 auto 0 50%;
+  width: 0.45rem;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 1rem rgba(255, 255, 255, 0.08);
+}
+
+.door-knob {
+  position: absolute;
+  right: 1.7rem;
+  top: 52%;
   width: 0.9rem;
   height: 0.9rem;
   border-radius: 99px;
   background: var(--gold);
-  box-shadow: 0 0 1.4rem rgba(255, 209, 102, 0.7);
+  box-shadow: 0 0 1.5rem rgba(255, 209, 102, 0.72);
 }
 
 .knock-door strong {
-  font-size: 1.4rem;
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  margin-bottom: 3.2rem;
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  transition: opacity 160ms ease;
 }
 
-.knock-door em {
-  color: var(--night-muted);
-  font-style: normal;
-  font-weight: 900;
+.room-glimpse {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.room-glimpse::before,
+.room-glimpse::after {
+  position: absolute;
+  content: "";
+}
+
+.room-glimpse::before {
+  right: 12%;
+  bottom: 5.4rem;
+  width: 48%;
+  height: 5.8rem;
+  border-radius: 2.8rem 2.8rem 1rem 1rem;
+  background:
+    radial-gradient(circle at 18% 32%, rgba(255, 248, 235, 0.2), transparent 1.6rem),
+    radial-gradient(circle at 78% 26%, rgba(104, 216, 176, 0.18), transparent 1.8rem),
+    linear-gradient(135deg, rgba(255, 248, 235, 0.16), rgba(239, 71, 111, 0.18));
+  box-shadow: 0 1.2rem 2.4rem rgba(0, 0, 0, 0.2);
+}
+
+.room-glimpse::after {
+  top: 2.2rem;
+  left: 2.2rem;
+  width: 9rem;
+  height: 12rem;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.78) 0 0.08rem, transparent 0.1rem),
+    radial-gradient(circle at 64% 22%, rgba(255, 255, 255, 0.65) 0 0.08rem, transparent 0.1rem),
+    radial-gradient(circle at 38% 58%, rgba(255, 255, 255, 0.75) 0 0.08rem, transparent 0.1rem),
+    radial-gradient(circle at 84% 76%, rgba(255, 255, 255, 0.55) 0 0.08rem, transparent 0.1rem);
+  opacity: 0.75;
+}
+
+.moon-window {
+  position: absolute;
+  top: 4.2rem;
+  right: 18%;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 42% 36%, #fff7d6 0 2.2rem, #ffd166 2.25rem 3.2rem, transparent 3.25rem),
+    rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 3.2rem rgba(255, 209, 102, 0.28);
+}
+
+.room-floor {
+  position: absolute;
+  inset: auto 7% 2.2rem;
+  height: 8rem;
+  border-radius: 999px 999px 8px 8px;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 248, 235, 0.12), transparent),
+    rgba(255, 248, 235, 0.06);
+}
+
+.room-light {
+  position: absolute;
+  inset: 20% 8% auto 24%;
+  height: 18rem;
+  background: radial-gradient(circle, rgba(255, 209, 102, 0.32), transparent 68%);
+}
+
+.moon-open .knock-door {
+  border-color: rgba(255, 209, 102, 0.42);
+  opacity: 0.7;
+  transform: translateX(-58%) scale(0.9);
+}
+
+.moon-open .knock-door strong {
+  opacity: 0;
+}
+
+.moon-open .room-glimpse {
+  opacity: 1;
 }
 
 .truth-grid {
@@ -1663,6 +1832,7 @@ textarea:focus {
   .flower-layout,
   .painting-layout,
   .battle-layout,
+  .knock-card,
   .truth-grid,
   .door-grid {
     grid-template-columns: 1fr;
@@ -1974,8 +2144,17 @@ textarea:focus {
   }
 
   .knock-door {
+    width: min(70%, 15rem);
+    min-height: 17rem;
+  }
+
+  .moonroom-scene {
+    min-height: 21rem;
+  }
+
+  .knock-progress {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
-    min-height: 12rem;
   }
 
   .truth-grid,

@@ -1855,23 +1855,46 @@ function MoonKnock({ onNext }: { onNext: () => void }) {
   return (
     <div className={`moon-layout ${open ? "moon-open" : ""}`}>
       <div className="moon-card knock-card">
-        <span className="mini-label">Door to Moonroom</span>
-        <h2>{open ? "The room is lit." : "Knock before you enter."}</h2>
-        <p>
-          {open
-            ? "Good. You are both here now. Take one breath, then step in."
-            : "Three soft knocks. No rush. Let the date start like a secret."}
-        </p>
-        <button className="knock-door" type="button" onClick={knock} aria-label="Knock on the Moonroom door">
-          <span />
-          <strong>{open ? "Open" : "Knock"}</strong>
-          <em>{knocks}/3</em>
-        </button>
-        <div className="activity-actions">
-          <button className="primary-button" type="button" onClick={open ? onNext : knock}>
-            {open ? "Enter Moonroom" : "Knock again"}
-            <ArrowRight size={16} aria-hidden="true" />
+        <div className="knock-copy">
+          <span className="mini-label">Door to Moonroom</span>
+          <h2>{open ? "Come in. The room kept a light on." : "Three knocks, then the room opens."}</h2>
+          <p>
+            {open
+              ? "You are both here. Let the outside world stay outside for a minute."
+              : "Tap the door together. Each knock wakes a little more of the room."}
+          </p>
+          <div className="knock-progress" aria-label={`Knocks ${knocks} of 3`}>
+            {Array.from({ length: 3 }, (_, index) => (
+              <span key={index} className={index < knocks ? "lit" : ""}>
+                {index + 1}
+              </span>
+            ))}
+          </div>
+          <div className="activity-actions">
+            <button className="primary-button" type="button" onClick={open ? onNext : knock}>
+              {open ? "Enter Moonroom" : "Knock softly"}
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+            {knocks > 0 ? (
+              <button className="ghost-button" type="button" onClick={() => setKnocks(0)}>
+                Reset
+                <RefreshCcw size={16} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="moonroom-scene" aria-hidden="true">
+          <button className="knock-door" type="button" onClick={knock} tabIndex={-1}>
+            <span className="door-slit" />
+            <span className="door-knob" />
+            <strong>{open ? "Open" : "Knock"}</strong>
           </button>
+          <div className="room-glimpse">
+            <span className="moon-window" />
+            <span className="room-floor" />
+            <span className="room-light" />
+          </div>
         </div>
       </div>
     </div>
