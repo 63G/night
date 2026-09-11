@@ -60,7 +60,9 @@ type ActivityId =
   | "blind-choice"
   | "build-room"
   | "voice-message"
-  | "final-envelope";
+  | "final-envelope"
+  | "whack-moon"
+  | "moon-maze";
 
 type Activity = {
   id: ActivityId;
@@ -231,6 +233,20 @@ const dateThreeActivities: Activity[] = [
     guidance:
       "Write the last two lines of tonight and download the envelope as a keepsake.",
   },
+  {
+    id: "whack-moon",
+    title: "Whack-a-Mole",
+    eyebrow: "Fast hands",
+    guidance:
+      "Hit the moon moles before they vanish. Avoid the decoys, keep the combo alive, and chase the high score.",
+  },
+  {
+    id: "moon-maze",
+    title: "Moon Maze",
+    eyebrow: "Find the moon",
+    guidance:
+      "Guide her through the 2D maze and reach the beautiful moon. Use the arrows on phone or keyboard on desktop.",
+  },
 ];
 
 const dateNights: DateNight[] = [
@@ -255,7 +271,7 @@ const dateNights: DateNight[] = [
     title: "Date 3",
     subtitle: "Moonroom",
     description:
-      "A private room with soft lies, mood dials, hidden doors, room-building, quiet messages, and a final envelope.",
+      "A private room with soft lies, mood dials, hidden doors, room-building, quiet messages, reflex games, and a moon maze.",
     activities: dateThreeActivities,
   },
 ];
@@ -513,6 +529,10 @@ function renderActivity(id: ActivityId, onNext: () => void) {
       return <VoiceMessage onNext={onNext} />;
     case "final-envelope":
       return <FinalEnvelope />;
+    case "whack-moon":
+      return <WhackMoonGame />;
+    case "moon-maze":
+      return <MoonMaze />;
   }
 }
 
@@ -2243,6 +2263,308 @@ function FinalEnvelope() {
             Download envelope
           </button>
           <span className="status-text">{status || "Screenshots work too. This one is meant to be kept."}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const moleHoleCount = 9;
+const moleGameSeconds = 30;
+
+function pickMoleState() {
+  const mole = Math.floor(Math.random() * moleHoleCount);
+  let decoy: number | null = null;
+
+  if (Math.random() > 0.42) {
+    do {
+      decoy = Math.floor(Math.random() * moleHoleCount);
+    } while (decoy === mole);
+  }
+
+  return { mole, decoy, stamp: Date.now() };
+}
+
+function WhackMoonGame() {
+  const [running, setRunning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(moleGameSeconds);
+  const [score, setScore] = useState(0);
+  const [best, setBest] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [active, setActive] = useState(() => pickMoleState());
+  const [feedback, setFeedback] = useState("Start when you are ready. Hit gold, avoid rose.");
+  const scoreRef = useRef(0);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  const reset = () => {
+    setRunning(false);
+    setTimeLeft(moleGameSeconds);
+    setScore(0);
+    setCombo(0);
+    setActive(pickMoleState());
+    setFeedback("Start when you are ready. Hit gold, avoid rose.");
+  };
+
+  const start = () => {
+    setRunning(true);
+    setTimeLeft(moleGameSeconds);
+    setScore(0);
+    setCombo(0);
+    setActive(pickMoleState());
+    setFeedback("Go. Keep the combo alive.");
+  };
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => {
+      setTimeLeft((value) => {
+        if (value <= 1) {
+          setRunning(false);
+          const finalScore = scoreRef.current;
+          setBest((current) => Math.max(current, finalScore));
+          setFeedback(finalScore >= 180 ? "Ridiculous hands." : finalScore >= 110 ? "Clean run." : "Warm-up round. Run it again.");
+          return 0;
+        }
+        return value - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [running]);
+
+  useEffect(() => {
+    if (!running) return;
+    const pace = Math.max(430, 760 - Math.min(score, 120) * 2);
+    const spawner = window.setInterval(() => setActive(pickMoleState()), pace);
+    return () => window.clearInterval(spawner);
+  }, [running, score]);
+
+  const hit = (index: number) => {
+    if (!running) {
+      start();
+      return;
+    }
+
+    if (index === active.mole) {
+      const bonus = Math.min(combo * 2, 18);
+      setScore((value) => value + 12 + bonus);
+      setCombo((value) => value + 1);
+      setFeedback(bonus ? `Hit. Combo +${combo + 1}.` : "Hit. Build the combo.");
+      setActive(pickMoleState());
+      return;
+    }
+
+    if (index === active.decoy) {
+      setScore((value) => Math.max(0, value - 10));
+      setCombo(0);
+      setFeedback("Rose decoy. Combo broken.");
+      setActive(pickMoleState());
+      return;
+    }
+
+    setScore((value) => Math.max(0, value - 3));
+    setCombo(0);
+    setFeedback("Empty tap. Reset your rhythm.");
+  };
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card mole-card">
+        <Target size={34} aria-hidden="true" />
+        <div className="mole-topline">
+          <span><strong>{timeLeft}</strong> sec</span>
+          <span><strong>{score}</strong> score</span>
+          <span><strong>{combo}</strong> combo</span>
+          <span><strong>{best}</strong> best</span>
+        </div>
+        <h2>Whack the moon moles.</h2>
+        <p>{feedback}</p>
+        <div className={running ? "mole-grid running" : "mole-grid"} aria-label="Whack-a-mole board">
+          {Array.from({ length: moleHoleCount }, (_, index) => {
+            const isMole = index === active.mole;
+            const isDecoy = index === active.decoy;
+            return (
+              <button
+                key={`${index}-${active.stamp}`}
+                className={[
+                  "mole-hole",
+                  isMole ? "mole-up" : "",
+                  isDecoy ? "decoy-up" : "",
+                ].join(" ").trim()}
+                type="button"
+                onClick={() => hit(index)}
+                aria-label={isMole ? "Moon mole" : isDecoy ? "Rose decoy" : "Empty hole"}
+              >
+                <span className="mole-shadow" />
+                <span className="mole-face">
+                  <span>{isDecoy ? "NO" : "MOON"}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="activity-actions">
+          <button className="primary-button" type="button" onClick={running ? reset : start}>
+            {running ? "Stop round" : score || timeLeft === 0 ? "Play again" : "Start game"}
+            <Gamepad2 size={16} aria-hidden="true" />
+          </button>
+          <button className="ghost-button" type="button" onClick={reset}>
+            Reset
+            <RefreshCcw size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type MazeData = {
+  size: number;
+  walls: boolean[][];
+};
+
+type MazePoint = {
+  row: number;
+  col: number;
+};
+
+const mazeSize = 13;
+
+function shuffleDirections(directions: MazePoint[]) {
+  return [...directions].sort(() => Math.random() - 0.5);
+}
+
+function makeMaze(size = mazeSize): MazeData {
+  const walls = Array.from({ length: size }, () => Array.from({ length: size }, () => true));
+  const directions = [
+    { row: -2, col: 0 },
+    { row: 2, col: 0 },
+    { row: 0, col: -2 },
+    { row: 0, col: 2 },
+  ];
+
+  const carve = (row: number, col: number) => {
+    walls[row][col] = false;
+    shuffleDirections(directions).forEach((direction) => {
+      const nextRow = row + direction.row;
+      const nextCol = col + direction.col;
+      if (nextRow <= 0 || nextCol <= 0 || nextRow >= size - 1 || nextCol >= size - 1 || !walls[nextRow][nextCol]) {
+        return;
+      }
+      walls[row + direction.row / 2][col + direction.col / 2] = false;
+      carve(nextRow, nextCol);
+    });
+  };
+
+  carve(1, 1);
+  walls[1][1] = false;
+  walls[size - 2][size - 2] = false;
+
+  return { size, walls };
+}
+
+function MoonMaze() {
+  const [maze, setMaze] = useState(() => makeMaze());
+  const [player, setPlayer] = useState<MazePoint>({ row: 1, col: 1 });
+  const [trail, setTrail] = useState<Set<string>>(() => new Set(["1-1"]));
+  const goal = { row: maze.size - 2, col: maze.size - 2 };
+  const solved = player.row === goal.row && player.col === goal.col;
+
+  const reset = () => {
+    const nextMaze = makeMaze();
+    setMaze(nextMaze);
+    setPlayer({ row: 1, col: 1 });
+    setTrail(new Set(["1-1"]));
+  };
+
+  const move = (rowDelta: number, colDelta: number) => {
+    setPlayer((current) => {
+      if (current.row === goal.row && current.col === goal.col) return current;
+      const next = { row: current.row + rowDelta, col: current.col + colDelta };
+      if (next.row < 0 || next.col < 0 || next.row >= maze.size || next.col >= maze.size || maze.walls[next.row][next.col]) {
+        return current;
+      }
+      setTrail((currentTrail) => new Set(currentTrail).add(`${next.row}-${next.col}`));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        move(-1, 0);
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        move(1, 0);
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        move(0, -1);
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        move(0, 1);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card maze-card">
+        <Waves size={34} aria-hidden="true" />
+        <div className="maze-head">
+          <div>
+            <span className="mini-label">2D maze</span>
+            <h2>{solved ? "She found the moon." : "Guide her to the moon."}</h2>
+          </div>
+          <p>{solved ? "The maze opens into moonlight. Beautifully done." : "Move one tile at a time. The glowing trail shows where she has been."}</p>
+        </div>
+        <div className="maze-play">
+          <div className="maze-board" style={{ "--maze-size": maze.size } as CSSProperties} aria-label="Moon maze board">
+            {maze.walls.flatMap((row, rowIndex) =>
+              row.map((wall, colIndex) => {
+                const key = `${rowIndex}-${colIndex}`;
+                const isPlayer = player.row === rowIndex && player.col === colIndex;
+                const isGoal = goal.row === rowIndex && goal.col === colIndex;
+                const isTrail = trail.has(key);
+                return (
+                  <span
+                    key={key}
+                    className={[
+                      "maze-cell",
+                      wall ? "wall" : "path",
+                      isTrail ? "trail" : "",
+                      isGoal ? "goal" : "",
+                      isPlayer ? "player" : "",
+                    ].join(" ").trim()}
+                  >
+                    {isPlayer ? <span className="maze-player" /> : null}
+                    {isGoal ? <span className="maze-moon" /> : null}
+                  </span>
+                );
+              }),
+            )}
+          </div>
+          <div className="maze-controls" aria-label="Maze controls">
+            <button type="button" onClick={() => move(-1, 0)} aria-label="Move up">Up</button>
+            <button type="button" onClick={() => move(0, -1)} aria-label="Move left">Left</button>
+            <button type="button" onClick={() => move(0, 1)} aria-label="Move right">Right</button>
+            <button type="button" onClick={() => move(1, 0)} aria-label="Move down">Down</button>
+          </div>
+        </div>
+        <div className="activity-actions">
+          <button className="ghost-button" type="button" onClick={reset}>
+            New maze
+            <RefreshCcw size={16} aria-hidden="true" />
+          </button>
         </div>
       </div>
     </div>
