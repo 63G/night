@@ -37,7 +37,7 @@ import {
   useState,
 } from "react";
 
-type DateNightId = "date-one" | "date-two";
+type DateNightId = "date-one" | "date-two" | "date-three";
 
 type ActivityId =
   | "flower"
@@ -53,7 +53,14 @@ type ActivityId =
   | "ranking"
   | "signal-game"
   | "code-game"
-  | "star-sequence";
+  | "star-sequence"
+  | "moon-knock"
+  | "soft-lie"
+  | "mood-dial"
+  | "blind-choice"
+  | "build-room"
+  | "voice-message"
+  | "final-envelope";
 
 type Activity = {
   id: ActivityId;
@@ -174,6 +181,58 @@ const dateTwoActivities: Activity[] = [
   },
 ];
 
+const dateThreeActivities: Activity[] = [
+  {
+    id: "moon-knock",
+    title: "Knock First",
+    eyebrow: "Arrive together",
+    guidance:
+      "Tap three quiet knocks to light the room. Small entrance, proper mood.",
+  },
+  {
+    id: "soft-lie",
+    title: "Two Truths, One Soft Lie",
+    eyebrow: "Guess gently",
+    guidance:
+      "Pick a prompt, write three answers, and let the other person guess which one is the soft lie.",
+  },
+  {
+    id: "mood-dial",
+    title: "The Mood Dial",
+    eyebrow: "Set the tone",
+    guidance:
+      "Choose how each of you feels tonight. The page gives you a matching tiny prompt.",
+  },
+  {
+    id: "blind-choice",
+    title: "Blind Choice",
+    eyebrow: "Open a door",
+    guidance:
+      "Pick hidden doors without knowing what is behind them: questions, confessions, and tiny dares.",
+  },
+  {
+    id: "build-room",
+    title: "Build Our Room",
+    eyebrow: "Make the scene",
+    guidance:
+      "Choose the light, sound, snack, view, blanket, and scent. The room writes itself as you go.",
+  },
+  {
+    id: "voice-message",
+    title: "Voice Without Voice",
+    eyebrow: "Say it softly",
+    guidance:
+      "Build a message from small pieces, then read it out loud or keep it as a text.",
+  },
+  {
+    id: "final-envelope",
+    title: "The Final Envelope",
+    eyebrow: "Keep the night",
+    guidance:
+      "Write the last two lines of tonight and download the envelope as a keepsake.",
+  },
+];
+
 const dateNights: DateNight[] = [
   {
     id: "date-one",
@@ -191,15 +250,27 @@ const dateNights: DateNight[] = [
       "A secret garden doorway, XO, topic cards, ranking games, wavelength checks, code puzzles, and a memory sequence.",
     activities: dateTwoActivities,
   },
+  {
+    id: "date-three",
+    title: "Date 3",
+    subtitle: "Moonroom",
+    description:
+      "A private room with soft lies, mood dials, hidden doors, room-building, quiet messages, and a final envelope.",
+    activities: dateThreeActivities,
+  },
 ];
+
+const defaultSteps: Record<DateNightId, number> = {
+  "date-one": 0,
+  "date-two": 0,
+  "date-three": 0,
+};
 
 function App() {
   const [selectedNight, setSelectedNight] = useState<DateNightId | null>(null);
   const [stepByNight, setStepByNight] = useState<Record<DateNightId, number>>(() => {
     const saved = window.localStorage.getItem("threadlight-steps");
-    return saved
-      ? { "date-one": 0, "date-two": 0, ...(JSON.parse(saved) as Partial<Record<DateNightId, number>>) }
-      : { "date-one": 0, "date-two": 0 };
+    return saved ? { ...defaultSteps, ...(JSON.parse(saved) as Partial<Record<DateNightId, number>>) } : defaultSteps;
   });
   const [completed, setCompleted] = useState<Set<ActivityId>>(() => {
     const saved = window.localStorage.getItem("threadlight-completed");
@@ -428,6 +499,20 @@ function renderActivity(id: ActivityId, onNext: () => void) {
       return <ConstellationCode />;
     case "star-sequence":
       return <StarSequence />;
+    case "moon-knock":
+      return <MoonKnock onNext={onNext} />;
+    case "soft-lie":
+      return <SoftLie onNext={onNext} />;
+    case "mood-dial":
+      return <MoodDial onNext={onNext} />;
+    case "blind-choice":
+      return <BlindChoice onNext={onNext} />;
+    case "build-room":
+      return <BuildRoom onNext={onNext} />;
+    case "voice-message":
+      return <VoiceMessage onNext={onNext} />;
+    case "final-envelope":
+      return <FinalEnvelope />;
   }
 }
 
@@ -1755,6 +1840,386 @@ function StarSequence() {
             Reset
             <RefreshCcw size={16} aria-hidden="true" />
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MoonKnock({ onNext }: { onNext: () => void }) {
+  const [knocks, setKnocks] = useState(0);
+  const open = knocks >= 3;
+
+  const knock = () => setKnocks((value) => Math.min(value + 1, 3));
+
+  return (
+    <div className={`moon-layout ${open ? "moon-open" : ""}`}>
+      <div className="moon-card knock-card">
+        <span className="mini-label">Door to Moonroom</span>
+        <h2>{open ? "The room is lit." : "Knock before you enter."}</h2>
+        <p>
+          {open
+            ? "Good. You are both here now. Take one breath, then step in."
+            : "Three soft knocks. No rush. Let the date start like a secret."}
+        </p>
+        <button className="knock-door" type="button" onClick={knock} aria-label="Knock on the Moonroom door">
+          <span />
+          <strong>{open ? "Open" : "Knock"}</strong>
+          <em>{knocks}/3</em>
+        </button>
+        <div className="activity-actions">
+          <button className="primary-button" type="button" onClick={open ? onNext : knock}>
+            {open ? "Enter Moonroom" : "Knock again"}
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const softLiePrompts = [
+  "Three tiny things I secretly like",
+  "Three ways I might ask for attention",
+  "Three date ideas I would actually say yes to",
+  "Three compliments that would ruin my composure",
+  "Three things I remember from us",
+];
+
+function SoftLie({ onNext }: { onNext: () => void }) {
+  const [promptIndex, setPromptIndex] = useState(0);
+  const [answers, setAnswers] = useState(["", "", ""]);
+  const [lieIndex, setLieIndex] = useState<number | null>(null);
+  const [revealed, setRevealed] = useState(false);
+  const prompt = softLiePrompts[promptIndex];
+
+  const updateAnswer = (index: number, value: string) => {
+    setAnswers((current) => current.map((answer, answerIndex) => (answerIndex === index ? value : answer)));
+    setRevealed(false);
+  };
+
+  const nextPrompt = () => {
+    setPromptIndex((value) => (value + 1) % softLiePrompts.length);
+    setAnswers(["", "", ""]);
+    setLieIndex(null);
+    setRevealed(false);
+  };
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card soft-lie-card">
+        <MessageCircle size={34} aria-hidden="true" />
+        <span className="mini-label">Prompt {promptIndex + 1} of {softLiePrompts.length}</span>
+        <h2>{prompt}</h2>
+        <div className="truth-grid">
+          {answers.map((answer, index) => (
+            <label key={index} className={revealed && lieIndex === index ? "lie-revealed" : ""}>
+              <span>{index + 1}</span>
+              <textarea
+                value={answer}
+                onChange={(event) => updateAnswer(index, event.target.value)}
+                placeholder={index === 0 ? "Truth, lie, or dangerous truth..." : "Write one line..."}
+              />
+              <button className="ghost-button" type="button" onClick={() => setLieIndex(index)}>
+                {lieIndex === index ? "Soft lie" : "Mark lie"}
+              </button>
+            </label>
+          ))}
+        </div>
+        <div className="activity-actions">
+          <button className="ghost-button" type="button" onClick={nextPrompt}>
+            New prompt
+            <RefreshCcw size={16} aria-hidden="true" />
+          </button>
+          <button className="ghost-button" type="button" onClick={() => setRevealed(true)} disabled={lieIndex === null}>
+            Reveal lie
+            <Sparkles size={16} aria-hidden="true" />
+          </button>
+          <button className="primary-button" type="button" onClick={onNext}>
+            Mood dial
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const moonMoods = [
+  { label: "Playful", prompt: "Ask for one unserious promise." },
+  { label: "Shy", prompt: "Say one thing you want, but softer than usual." },
+  { label: "Needy", prompt: "Ask for a very specific kind of attention." },
+  { label: "Calm", prompt: "Describe the place you wish you were sharing." },
+  { label: "Chaotic", prompt: "Invent a ridiculous emergency only love can solve." },
+  { label: "Romantic", prompt: "Say the line you would write on a note and hide." },
+];
+
+function MoodDial({ onNext }: { onNext: () => void }) {
+  const [mine, setMine] = useState("Playful");
+  const [hers, setHers] = useState("Romantic");
+  const mineMood = moonMoods.find((mood) => mood.label === mine) ?? moonMoods[0];
+  const herMood = moonMoods.find((mood) => mood.label === hers) ?? moonMoods[1];
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card mood-card">
+        <Heart size={34} aria-hidden="true" />
+        <h2>Choose the temperature of tonight.</h2>
+        <div className="mood-columns">
+          <div>
+            <strong>You</strong>
+            <div className="mood-buttons">
+              {moonMoods.map((mood) => (
+                <button key={mood.label} className={mine === mood.label ? "selected" : ""} type="button" onClick={() => setMine(mood.label)}>
+                  {mood.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <strong>Her</strong>
+            <div className="mood-buttons">
+              {moonMoods.map((mood) => (
+                <button key={mood.label} className={hers === mood.label ? "selected" : ""} type="button" onClick={() => setHers(mood.label)}>
+                  {mood.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="moon-result">
+          <span>{mine} + {hers}</span>
+          <p>{mineMood.prompt} Then let her answer with: {herMood.prompt.toLowerCase()}</p>
+        </div>
+        <div className="activity-actions">
+          <button className="primary-button" type="button" onClick={onNext}>
+            Open doors
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const blindDoors = [
+  { title: "Question", text: "What is one version of you that only I get to meet?" },
+  { title: "Confession", text: "Admit one small thing you wanted to say but did not." },
+  { title: "Tiny dare", text: "Send a voice note that is only seven seconds long." },
+  { title: "Compliment", text: "Describe one detail about her that feels unfairly attractive." },
+  { title: "Future", text: "Name one ordinary thing you want to do together one day." },
+  { title: "Wild card", text: "Both of you ask one yes/no question. No explaining first." },
+];
+
+function BlindChoice({ onNext }: { onNext: () => void }) {
+  const [revealed, setRevealed] = useState<Set<number>>(() => new Set());
+
+  const toggleDoor = (index: number) => {
+    setRevealed((current) => {
+      const next = new Set(current);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card blind-card">
+        <Sparkles size={34} aria-hidden="true" />
+        <h2>Pick a door before you know what it wants.</h2>
+        <div className="door-grid">
+          {blindDoors.map((door, index) => {
+            const isOpen = revealed.has(index);
+            return (
+              <button key={door.title} className={isOpen ? "door-card open" : "door-card"} type="button" onClick={() => toggleDoor(index)}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{isOpen ? door.title : "Closed door"}</strong>
+                <p>{isOpen ? door.text : "Choose it, then deal with whatever appears."}</p>
+              </button>
+            );
+          })}
+        </div>
+        <div className="activity-actions">
+          <button className="ghost-button" type="button" onClick={() => setRevealed(new Set())}>
+            Close all
+            <RefreshCcw size={16} aria-hidden="true" />
+          </button>
+          <button className="primary-button" type="button" onClick={onNext}>
+            Build room
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const roomOptions = [
+  { key: "light", label: "Light", options: ["Moonlamp", "Candle line", "City glow"] },
+  { key: "sound", label: "Sound", options: ["Soft playlist", "Rain outside", "Almost silence"] },
+  { key: "snack", label: "Snack", options: ["Fries", "Chocolate", "Fruit plate"] },
+  { key: "view", label: "View", options: ["Balcony", "Window seat", "Roof at night"] },
+  { key: "blanket", label: "Blanket", options: ["One huge blanket", "Two hoodies", "Fresh sheets"] },
+  { key: "scent", label: "Scent", options: ["Vanilla", "Clean laundry", "After rain"] },
+];
+
+function BuildRoom({ onNext }: { onNext: () => void }) {
+  const [room, setRoom] = useState<Record<string, string>>(() =>
+    Object.fromEntries(roomOptions.map((option) => [option.key, option.options[0]])),
+  );
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card build-room-card">
+        <Coffee size={34} aria-hidden="true" />
+        <h2>Build the room you wish existed.</h2>
+        <div className="room-builder">
+          {roomOptions.map((group) => (
+            <div key={group.key} className="room-option">
+              <strong>{group.label}</strong>
+              <div>
+                {group.options.map((option) => (
+                  <button
+                    key={option}
+                    className={room[group.key] === option ? "selected" : ""}
+                    type="button"
+                    onClick={() => setRoom((current) => ({ ...current, [group.key]: option }))}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="room-summary">
+          Tonight: {room.light.toLowerCase()}, {room.sound.toLowerCase()}, {room.snack.toLowerCase()}, a {room.view.toLowerCase()}, {room.blanket.toLowerCase()}, and {room.scent.toLowerCase()}.
+        </div>
+        <div className="activity-actions">
+          <button className="primary-button" type="button" onClick={onNext}>
+            Write without voice
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const voicePieces = {
+  opener: ["I would tell you", "If you were here", "Tonight I keep thinking", "Low key"],
+  feeling: ["I miss your face", "you make me calmer", "you are trouble", "I want your attention"],
+  wish: ["come closer", "stay on the call", "let me spoil you", "tell me one secret"],
+  closer: ["and I mean it.", "no argument.", "right now.", "softly."],
+};
+
+function VoiceMessage({ onNext }: { onNext: () => void }) {
+  const [message, setMessage] = useState({
+    opener: voicePieces.opener[0],
+    feeling: voicePieces.feeling[1],
+    wish: voicePieces.wish[1],
+    closer: voicePieces.closer[0],
+  });
+  const [custom, setCustom] = useState("");
+
+  const sentence = `${message.opener} ${message.feeling}; ${message.wish}, ${message.closer}`;
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card voice-card">
+        <Music size={34} aria-hidden="true" />
+        <h2>Make a message without recording one.</h2>
+        <div className="voice-pieces">
+          {Object.entries(voicePieces).map(([key, options]) => (
+            <div key={key}>
+              <strong>{key}</strong>
+              <div>
+                {options.map((option) => (
+                  <button
+                    key={option}
+                    className={message[key as keyof typeof message] === option ? "selected" : ""}
+                    type="button"
+                    onClick={() => setMessage((current) => ({ ...current, [key]: option }))}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <label className="custom-line">
+          Add your own line
+          <input value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="One extra thing only you would say..." />
+        </label>
+        <div className="voice-preview">
+          <p>{sentence}</p>
+          {custom ? <span>{custom}</span> : null}
+        </div>
+        <div className="activity-actions">
+          <button className="primary-button" type="button" onClick={onNext}>
+            Final envelope
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinalEnvelope() {
+  const captureRef = useRef<HTMLDivElement>(null);
+  const [mine, setMine] = useState("");
+  const [hers, setHers] = useState("");
+  const [closing, setClosing] = useState("Keep this night somewhere soft.");
+  const [status, setStatus] = useState("");
+
+  const download = async () => {
+    if (!captureRef.current) return;
+    setStatus("Sealing envelope...");
+    const dataUrl = await toPng(captureRef.current, {
+      pixelRatio: 2,
+      cacheBust: true,
+      backgroundColor: "#111729",
+    });
+    const link = document.createElement("a");
+    link.download = "moonroom-envelope.png";
+    link.href = dataUrl;
+    link.click();
+    setStatus("Downloaded. The envelope is yours.");
+  };
+
+  return (
+    <div className="moon-layout">
+      <div className="moon-card envelope-card">
+        <div className="moon-envelope" ref={captureRef}>
+          <span>Moonroom envelope</span>
+          <h2>Tonight I want you to remember...</h2>
+          <div className="envelope-lines">
+            <label>
+              My line
+              <textarea value={mine} onChange={(event) => setMine(event.target.value)} placeholder="Tonight I want you to remember..." />
+            </label>
+            <label>
+              Her line
+              <textarea value={hers} onChange={(event) => setHers(event.target.value)} placeholder="Tonight I want you to remember..." />
+            </label>
+          </div>
+          <label className="custom-line">
+            Closing
+            <input value={closing} onChange={(event) => setClosing(event.target.value)} />
+          </label>
+        </div>
+        <div className="activity-actions">
+          <button className="primary-button" type="button" onClick={download}>
+            <Download size={16} aria-hidden="true" />
+            Download envelope
+          </button>
+          <span className="status-text">{status || "Screenshots work too. This one is meant to be kept."}</span>
         </div>
       </div>
     </div>
